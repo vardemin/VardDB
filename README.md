@@ -24,7 +24,7 @@ Then add the following line
 
 ``` gradle
 dependencies {
-  implementation 'com.github.vardemin.varddb:varddb:0.1.0'
+  implementation 'com.github.vardemin:VardDB:0.1.0'
 }
 ```
 
