@@ -4,7 +4,7 @@ P.S. Vard[վարդ (in armenian)] - rose as entry point for Database with petals
 
 [![](https://jitpack.io/v/vardemin/VardDB.svg)](https://jitpack.io/#vardemin/VardDB)
 
-#Quick start
+# Quick start
 ## 1. Include library
 
 **Using Gradle**
@@ -28,11 +28,11 @@ dependencies {
 }
 ```
 
-## 2. Supported types
+## Supported types
 Supported types: Int, String, Boolean, Double, Float, ByteArray, Long, Set<String>, Serializable, List<Parcelable>, Map<String, Parcelable?>
 
-## 3. Usage
-###1. Initialize
+## Usage
+### 1. Initialize
 ```kotlin
 class App: Application() {
     override fun onCreate() {
@@ -41,7 +41,7 @@ class App: Application() {
     }
 }
 ```
-###2. Create or access created store instance
+### 2. Create or access created store instance
 ```kotlin
 db = VardDb.store(name = KEY_DEFAULT,
                           multiProcess = true,
@@ -61,7 +61,7 @@ data class VardStoreConfig(
 
 db = VardDb.store(config)
 ```
-###3. Write to store
+### 3. Write to store
 
 ```kotlin
 db.save(key, value, ttl = -1L)
@@ -69,14 +69,14 @@ db.saveAsync(key, value, ttl = -1L, context = config.coroutineContext)
 ```
 TTL = -1L means no Time-To-Live (default -1). Value in milliseconds
 
-###4. Read from store
+### 4. Read from store
 
 ```kotlin
 //READ METHOD SYNTAX: db.read + [Int,String,Bool,Long,Float,Double,StringSet,Object,Parcelable,ParcelableList,ParcelableMap] + [Async, _] + (key, [defaultValue], isTTL = config.isTTL,  context: CoroutineContext = config.coroutineContext)
 db.readBool("someFlag", isTTL = false) //Nullable
 db.readBool("someFlag", default = true, isTTL = false) //Non-null
 ```
-##4. LiveData support
+## LiveData support
 
 ```kotlin
 //Empty non-prefilled livedata
@@ -101,7 +101,7 @@ fun <T: Parcelable> getFilledLiveData(key: String, isTTL: Boolean = config.isTTL
 ```
 In case of asyncFill = false MutableLiveData(value) will be created
 
-##5. Fast serialization
+## Fast serialization
 By default Fast Serialization library is used to deserialize target object if type of object not found. Exception will be thrown in case of object non-serializable.
 
 ## License
