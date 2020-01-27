@@ -32,22 +32,59 @@ data class VardStore(val config: VardStoreConfig) {
         return liveData as LiveData<T>
     }
 
-    fun <T> getFilledLivedData(key: String, entityType: EntityType = EntityType.NONE, isTTL: Boolean = config.isTTL, asyncFill: Boolean = config.prefillLiveDataAsync): LiveData<T> {
+    fun <T> getFilledLivedData(key: String, entityType: EntityType, isTTL: Boolean = config.isTTL, asyncFill: Boolean = config.prefillLiveDataAsync): LiveData<T> {
         var liveData: MutableLiveData<T>? = liveDataMap[key] as MutableLiveData<T>?
         if (liveData == null) {
-            liveData = MutableLiveData<T>()
+            liveData = if (!asyncFill) MutableLiveData(getDataByType(key, entityType, isTTL)) else MutableLiveData()
             liveDataMap[key] = liveData
         }
-        if (liveData.value == null) {
-            if (!asyncFill) {
+        if (liveData.value == null && asyncFill) {
+            GlobalScope.launch(config.coroutineContext) {
                 liveData.value = getDataByType(key, entityType, isTTL)
-            } else {
-                GlobalScope.launch(config.coroutineContext) {
-                    liveData.value = getDataByType(key, entityType, isTTL)
-                }
             }
         }
+        return liveData
+    }
 
+    fun <T: Parcelable> getFilledLiveData(key: String, clazz: Class<T>, isTTL: Boolean = config.isTTL, asyncFill: Boolean = config.prefillLiveDataAsync): LiveData<T> {
+        var liveData: MutableLiveData<T>? = liveDataMap[key] as MutableLiveData<T>?
+        if (liveData == null) {
+            liveData = if (!asyncFill) MutableLiveData<T>(readParcelable(key, clazz, isTTL)) else MutableLiveData()
+            liveDataMap[key] = liveData
+        }
+        if (liveData.value == null && asyncFill) {
+            GlobalScope.launch(config.coroutineContext) {
+                liveData.value = readParcelable(key, clazz, isTTL)
+            }
+        }
+        return liveData
+    }
+
+    fun <T: Parcelable> getFilledLiveData(key: String, creator: Parcelable.Creator<T>, isTTL: Boolean = config.isTTL, asyncFill: Boolean = config.prefillLiveDataAsync): LiveData<List<T>> {
+        var liveData: MutableLiveData<List<T>>? = liveDataMap[key] as MutableLiveData<List<T>>?
+        if (liveData == null) {
+            liveData = if (!asyncFill) MutableLiveData(readParcelableList(key, creator, isTTL)) else MutableLiveData()
+            liveDataMap[key] = liveData
+        }
+        if (liveData.value == null && asyncFill) {
+            GlobalScope.launch(config.coroutineContext) {
+                liveData.value = readParcelableList(key, creator, isTTL)
+            }
+        }
+        return liveData
+    }
+
+    fun <T: Parcelable> getFilledLiveData(key: String, isTTL: Boolean = config.isTTL, asyncFill: Boolean = config.prefillLiveDataAsync): LiveData<Map<String, T?>> {
+        var liveData: MutableLiveData<Map<String, T?>>? = liveDataMap[key] as MutableLiveData<Map<String, T?>>?
+        if (liveData == null) {
+            liveData = if (!asyncFill) MutableLiveData(readParcelableMap(key, isTTL)) else MutableLiveData()
+            liveDataMap[key] = liveData
+        }
+        if (liveData.value == null && asyncFill) {
+            GlobalScope.launch(config.coroutineContext) {
+                liveData.value = readParcelableMap(key, isTTL)
+            }
+        }
         return liveData
     }
 
@@ -61,7 +98,7 @@ data class VardStore(val config: VardStoreConfig) {
             EntityType.INT -> readInt(key, isTTL) as T?
             EntityType.LONG -> readLong(key, isTTL) as T?
             EntityType.STRING -> readString(key, isTTL) as T?
-            EntityType.OBJECT -> readObject(key, isTTL)
+            EntityType.SERIALIZABLE -> readObject(key, isTTL)
             else -> null
         }
     }
@@ -86,6 +123,20 @@ data class VardStore(val config: VardStoreConfig) {
         }
     public suspend fun saveAsync(key: String, value: MutableSet<String>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
         withContext(context) { save(key, value, ttl)}
+
+    public fun <T: Parcelable> save(key: String, list: List<T>, ttl: Long = -1L) =
+        setTTL(key, ttl) {
+            mmkv.encode(key, MarshalUtil.marshall(list)).also { notifyLiveData(key, list) }
+        }
+    public suspend fun <T: Parcelable> save(key: String, list: List<T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
+        withContext(context) { save(key, list, ttl)}
+
+    public fun <T: Parcelable> save(key: String, map: Map<String, T>, ttl: Long = -1L) =
+        setTTL(key, ttl) {
+            mmkv.encode(key, MarshalUtil.marshall(map)).also { notifyLiveData(key, map) }
+        }
+    public suspend fun <T: Parcelable> save(key: String, map: Map<String, T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
+        withContext(context) { save(key, map, ttl)}
 
     public fun <T> save(key: String, value: T, ttl: Long = -1L) = mmkv.encode(key, value, ttl).also { if (it) notifyLiveData(key, value) }
     public suspend fun <T> saveAsync(key: String, value: T, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
@@ -193,36 +244,54 @@ data class VardStore(val config: VardStoreConfig) {
          withContext(context) { readByteArray(key, default, isTTL) }
 
 
-    public fun readParcelable(
+    public fun <T: Parcelable> readParcelable(
         key: String,
-        objClass: Class<Parcelable>,
+        objClass: Class<T>,
         isTTL: Boolean = config.isTTL
-    ): Parcelable? =
+    ): T? =
         readTTL(key, isTTL) {
             mmkv.decodeParcelable(key, objClass)
         }
 
-    public suspend fun readParcelableAsync(
+    public suspend fun <T: Parcelable> readParcelableAsync(
         key: String,
-        objClass: Class<Parcelable>,
+        objClass: Class<T>,
         isTTL: Boolean = config.isTTL, context: CoroutineContext = config.coroutineContext
-    ): Parcelable? = withContext(context) { readParcelable(key, objClass, isTTL) }
+    ): T? = withContext(context) { readParcelable(key, objClass, isTTL) }
 
-    public fun readParcelable(
+    public fun <T: Parcelable> readParcelable(
         key: String,
-        objClass: Class<Parcelable>,
-        default: Parcelable,
+        objClass: Class<T>,
+        default: T,
         isTTL: Boolean = config.isTTL
-    ): Parcelable =
+    ): T =
         readParcelable(key, objClass, isTTL) ?: default
 
-    public suspend fun readParcelableAsync(
+    public suspend fun <T: Parcelable> readParcelableAsync(
         key: String,
-        objClass: Class<Parcelable>,
-        default: Parcelable,
+        objClass: Class<T>,
+        default: T,
         isTTL: Boolean = config.isTTL, context: CoroutineContext = config.coroutineContext
-    ): Parcelable =
+    ): T =
         withContext(context) { readParcelable(key, objClass,default, isTTL) }
+
+    public fun <T: Parcelable> readParcelableList(key: String, creator: Parcelable.Creator<T>, isTTL: Boolean = config.isTTL): List<T> {
+        val obj =
+            readTTL(key, isTTL) { MarshalUtil.unmarshall(mmkv.decodeBytes(key), creator) }
+        return obj ?: listOf()
+    }
+
+    public suspend fun <T: Parcelable> readParcelableListAsync(key: String, creator: Parcelable.Creator<T>, isTTL: Boolean = config.isTTL, context: CoroutineContext = config.coroutineContext): List<T> =
+        withContext(context) { readParcelableList(key, creator, isTTL) }
+
+    public fun <T: Parcelable> readParcelableMap(key: String, isTTL: Boolean = config.isTTL): Map<String, T?> {
+        val obj: Map<String, T?>? =
+            readTTL(key, isTTL) { val map: Map<String, T?> = MarshalUtil.unmarshall(mmkv.decodeBytes(key)); return@readTTL map; }
+        return obj ?: mapOf()
+    }
+
+    public suspend fun <T: Parcelable> readParcelableMapAsync(key: String, isTTL: Boolean = config.isTTL, context: CoroutineContext = config.coroutineContext): Map<String, T?> =
+        withContext(context) { val result: Map<String, T?> =  readParcelableMap(key, isTTL); return@withContext result; }
 
 
     public fun readStringSet(key: String, isTTL: Boolean = config.isTTL): MutableSet<String>? =

@@ -2,7 +2,7 @@ package com.vardemin.varddb
 
 enum class EntityType {
     NONE,
-    OBJECT,
+    SERIALIZABLE,
     BOOLEAN,
     STRING,
     INT,

@@ -40,4 +40,14 @@ object VardDb {
         return targetStore
     }
 
+    fun store(config: VardStoreConfig): VardStore {
+        if (initString == null) throw VardDbNotInitializedException("Please call init first")
+        var targetStore = stores[config.name]
+        if (targetStore == null) {
+            targetStore = VardStore(config)
+            stores[config.name] = targetStore
+        }
+        return targetStore
+    }
+
 }
