@@ -124,18 +124,25 @@ data class VardStore(val config: VardStoreConfig) {
     public suspend fun saveAsync(key: String, value: MutableSet<String>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
         withContext(context) { save(key, value, ttl)}
 
+    public fun <T: Parcelable> save(key: String, value: T, ttl: Long = -1L) =
+        setTTL(key, ttl) {
+            mmkv.encode(key, value).also { notifyLiveData(key, value) }
+        }
+    public suspend fun <T: Parcelable> saveAsync(key: String, value: T, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
+        withContext(context) { save(key, value, ttl)}
+
     public fun <T: Parcelable> save(key: String, list: List<T>, ttl: Long = -1L) =
         setTTL(key, ttl) {
             mmkv.encode(key, MarshalUtil.marshall(list)).also { notifyLiveData(key, list) }
         }
-    public suspend fun <T: Parcelable> save(key: String, list: List<T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
+    public suspend fun <T: Parcelable> saveAsync(key: String, list: List<T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
         withContext(context) { save(key, list, ttl)}
 
     public fun <T: Parcelable> save(key: String, map: Map<String, T>, ttl: Long = -1L) =
         setTTL(key, ttl) {
             mmkv.encode(key, MarshalUtil.marshall(map)).also { notifyLiveData(key, map) }
         }
-    public suspend fun <T: Parcelable> save(key: String, map: Map<String, T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
+    public suspend fun <T: Parcelable> saveAsync(key: String, map: Map<String, T>, ttl: Long = -1L, context: CoroutineContext = config.coroutineContext) =
         withContext(context) { save(key, map, ttl)}
 
     public fun <T> save(key: String, value: T, ttl: Long = -1L) = mmkv.encode(key, value, ttl).also { if (it) notifyLiveData(key, value) }
