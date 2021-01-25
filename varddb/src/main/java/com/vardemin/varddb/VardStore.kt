@@ -19,7 +19,7 @@ data class VardStore(val config: VardStoreConfig) {
     private val mmkv: MMKV = MMKV.mmkvWithID(
         config.name,
         if (config.multiProcess) MMKV.MULTI_PROCESS_MODE else MMKV.SINGLE_PROCESS_MODE
-    )
+    )!!
 
     private val liveDataMap by lazy { ConcurrentHashMap<String, Any>() }
 
@@ -379,7 +379,7 @@ data class VardStore(val config: VardStoreConfig) {
 
     private fun notifyKeysLiveCleared(vararg keys: String) {
         try {
-            for (liveData in liveDataMap.values.filter { keys.contains(it) }) {
+            for (liveData in liveDataMap.filter{ keys.contains(it.key) }.values) {
                 (liveData as MutableLiveData<*>).postValue(null)
             }
         } catch (ex: Exception) {

@@ -28,12 +28,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        db.getLiveData<String>("String").observe(this) {
+            tvLive.text = "LiveData changed to $it"
+        }
+
         tvObjInput.text = obj.toString()
 
         btnStrInput.setOnClickListener(this::onClick)
         btnStrOutput.setOnClickListener(this::onClick)
         btnObjInput.setOnClickListener(this::onClick)
         btnObjOutput.setOnClickListener(this::onClick)
+        btnRemove.setOnClickListener(this::onClick)
     }
 
     private fun onClick(view: View) {
@@ -108,6 +113,9 @@ class MainActivity : AppCompatActivity() {
                     ).show()
                     tvObjOutput.text = saved.toString()
                 }
+            }
+            R.id.btnRemove -> {
+                db.remove("String")
             }
         }
     }
